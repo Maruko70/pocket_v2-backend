@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ComplexController;
 use App\Http\Controllers\DoctorController;
+use App\Http\Controllers\MediaController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\MajorController;
 use App\Http\Controllers\ReservationController;
@@ -16,6 +17,9 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/login-unified', [AuthController::class, 'loginUnified']);
 Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+
+// Public media fallback (prefer /storage/* when nginx serves it)
+Route::get('/media/{path}', [MediaController::class, 'show'])->where('path', '.*');
 
 // Public browse (no auth required)
 Route::get('/doctors/search', [DoctorController::class, 'search']);

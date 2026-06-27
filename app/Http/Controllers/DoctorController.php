@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Doctor;
 use App\Services\DoctorRatingService;
+use App\Support\PublicStorageUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Storage;
 
 class DoctorController extends Controller
 {
@@ -21,7 +21,7 @@ class DoctorController extends Controller
         $perPage = $request->get('per_page', 15);
         $page = $request->get('page', 1);
 
-        $cacheKey = 'doctors_search_v2_' . md5($query . $perPage . $page);
+        $cacheKey = 'doctors_search_v4_' . md5($query . $perPage . $page);
         
         $result = Cache::remember($cacheKey, 300, function () use ($query, $perPage, $page) {
             $doctorsQuery = Doctor::active();
@@ -41,7 +41,7 @@ class DoctorController extends Controller
             $doctorsList = $doctors->getCollection()->map(function ($doctor) use ($ratingService) {
                 $arr = $doctor->toArray();
                 if (!empty($arr['image'])) {
-                    $arr['image'] = url(Storage::url($arr['image']));
+                    $arr['image'] = PublicStorageUrl::resolve($arr['image']);
                 }
                 $arr['average_rating'] = $ratingService->getCompositeRating($doctor);
                 $arr['reviews_count'] = $ratingService->getReviewsCount($doctor);
@@ -68,7 +68,7 @@ class DoctorController extends Controller
     public function featured(Request $request)
     {
         $limit = min((int) $request->get('limit', 3), 20);
-        $cacheKey = 'doctors_featured_' . $limit;
+        $cacheKey = 'doctors_featured_v3_' . $limit;
 
         $doctorsList = Cache::remember($cacheKey, 300, function () use ($limit) {
             $doctors = Doctor::active()
@@ -81,7 +81,7 @@ class DoctorController extends Controller
             $withRating = $doctors->map(function ($doctor) {
                 $arr = $doctor->toArray();
                 if (!empty($arr['image'])) {
-                    $arr['image'] = url(Storage::url($arr['image']));
+                    $arr['image'] = PublicStorageUrl::resolve($arr['image']);
                 }
                 $arr['average_rating'] = $this->ratingService->getCompositeRating($doctor);
                 $arr['reviews_count'] = $this->ratingService->getReviewsCount($doctor);
@@ -158,7 +158,7 @@ class DoctorController extends Controller
 
         // Format image URL to full URL
         if ($doctor->image) {
-            $doctor->image = url(Storage::url($doctor->image));
+            $doctor->image = PublicStorageUrl::resolve($doctor->image);
         }
 
         $averageRating = $this->ratingService->getCompositeRating($doctor);
@@ -183,7 +183,7 @@ class DoctorController extends Controller
         $complexes = $doctor->complexes->map(function ($complex) {
             $arr = $complex->toArray();
             if (!empty($arr['logo'])) {
-                $arr['logo'] = url(Storage::url($arr['logo']));
+                $arr['logo'] = PublicStorageUrl::resolve($arr['logo']);
             }
             return $arr;
         })->values();

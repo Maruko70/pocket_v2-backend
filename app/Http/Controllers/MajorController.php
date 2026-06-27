@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\ComplexChip;
 use App\Models\Major;
+use App\Support\PublicStorageUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Storage;
 
 class MajorController extends Controller
 {
@@ -93,7 +93,7 @@ class MajorController extends Controller
         // Format image URLs to full URLs
         $doctors->getCollection()->transform(function ($doctor) {
             if ($doctor->image) {
-                $doctor->image = url(Storage::url($doctor->image));
+                $doctor->image = PublicStorageUrl::resolve($doctor->image);
             }
             return $doctor;
         });
@@ -136,7 +136,7 @@ class MajorController extends Controller
 
         $doctors->getCollection()->transform(function ($doctor) {
             if ($doctor->image) {
-                $doctor->image = url(Storage::url($doctor->image));
+                $doctor->image = PublicStorageUrl::resolve($doctor->image);
             }
             return $doctor;
         });

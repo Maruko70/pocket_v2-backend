@@ -1,0 +1,16 @@
+{
+  "legacySqlFile": "E:\\wingz\\projects\\pocket\\alnahdag_pocket(9).sql",
+  "stagingDatabase": "pocket_legacy_stage",
+  "targetDatabase": "pocket_v2_import",
+  "mode": "Merge",
+  "mySqlHost": "127.0.0.1",
+  "mySqlPort": 3306,
+  "mySqlUser": "root",
+  "mySqlPassword": "",
+  "mySqlPath": "C:\\xampp\\mysql\\bin\\mysql.exe",
+  "dropStaging": true,
+  "skipStagingImport": false,
+  "dropTarget": false,
+  "runMigrations": false,
+  "skipVerify": false
+}

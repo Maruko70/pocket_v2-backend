@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Complex;
+use App\Support\PublicStorageUrl;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class ComplexController extends Controller
 {
@@ -15,7 +15,7 @@ class ComplexController extends Controller
     {
         $arr = $complex->toArray();
         if (!empty($arr['logo'])) {
-            $arr['logo'] = url(Storage::url($arr['logo']));
+            $arr['logo'] = PublicStorageUrl::resolve($arr['logo']);
         }
         return $arr;
     }
