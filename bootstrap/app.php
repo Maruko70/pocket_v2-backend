@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function ($middleware) {
         $middleware->api(prepend: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            \App\Http\Middleware\ParsePutPatchJsonBody::class,
             \App\Http\Middleware\SanitizeInput::class,
         ]);
         $middleware->append(\App\Http\Middleware\LogActivity::class);

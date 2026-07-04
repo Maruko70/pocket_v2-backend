@@ -14,13 +14,38 @@ class UserManagementController extends Controller
     public function index(Request $request)
     {
         $query = User::query()->withCount('reservations');
+        $search = $request->get('search', $request->get('q'));
+        $ids = $request->get('ids');
+        $idList = $ids ? (is_array($ids) ? $ids : array_filter(array_map('intval', explode(',', $ids)))) : [];
+        $hasSearch = $search && strlen(trim($search)) > 0;
 
-        if ($request->filled('search')) {
-            $term = $request->search;
+        if ($hasSearch && !empty($idList)) {
+            $term = trim($search);
+            $query->where(function ($q) use ($term, $idList) {
+                $q->where('name', 'like', "%{$term}%")
+                    ->orWhere('phone', 'like', "%{$term}%")
+                    ->orWhereIn('id', $idList);
+            });
+        } elseif ($hasSearch) {
+            $term = trim($search);
             $query->where(function ($q) use ($term) {
                 $q->where('name', 'like', "%{$term}%")
                     ->orWhere('phone', 'like', "%{$term}%");
             });
+        } elseif (!empty($idList)) {
+            $query->whereIn('id', $idList);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('registered_from')) {
+            $query->whereDate('created_at', '>=', $request->registered_from);
+        }
+
+        if ($request->filled('registered_to')) {
+            $query->whereDate('created_at', '<=', $request->registered_to);
         }
 
         $perPage = $request->get('per_page', 15);

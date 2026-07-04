@@ -21,7 +21,7 @@ class DoctorController extends Controller
         $perPage = $request->get('per_page', 15);
         $page = $request->get('page', 1);
 
-        $cacheKey = 'doctors_search_v4_' . md5($query . $perPage . $page);
+        $cacheKey = 'doctors_search_v6_' . md5($query . $perPage . $page);
         
         $result = Cache::remember($cacheKey, 300, function () use ($query, $perPage, $page) {
             $doctorsQuery = Doctor::active();
@@ -63,32 +63,34 @@ class DoctorController extends Controller
     }
 
     /**
-     * Top-rated doctors for featured section (sorted by composite rating desc).
+     * Curated featured doctors (selected in dashboard, ordered by featured_sort).
      */
     public function featured(Request $request)
     {
-        $limit = min((int) $request->get('limit', 3), 20);
-        $cacheKey = 'doctors_featured_v3_' . $limit;
+        $cacheKey = 'doctors_featured_curated';
 
-        $doctorsList = Cache::remember($cacheKey, 300, function () use ($limit) {
-            $doctors = Doctor::active()
+        $doctorsList = Cache::remember($cacheKey, 300, function () {
+            $ratingService = app(DoctorRatingService::class);
+
+            return Doctor::active()
+                ->featured()
                 ->with(['complexes' => function ($q) {
                     $q->where('is_active', true);
                 }, 'majors'])
-                ->limit(100)
-                ->get();
+                ->limit(6)
+                ->get()
+                ->map(function ($doctor) use ($ratingService) {
+                    $arr = $doctor->toArray();
+                    if (! empty($arr['image'])) {
+                        $arr['image'] = PublicStorageUrl::resolve($arr['image']);
+                    }
+                    $arr['average_rating'] = $ratingService->getCompositeRating($doctor);
+                    $arr['reviews_count'] = $ratingService->getReviewsCount($doctor);
 
-            $withRating = $doctors->map(function ($doctor) {
-                $arr = $doctor->toArray();
-                if (!empty($arr['image'])) {
-                    $arr['image'] = PublicStorageUrl::resolve($arr['image']);
-                }
-                $arr['average_rating'] = $this->ratingService->getCompositeRating($doctor);
-                $arr['reviews_count'] = $this->ratingService->getReviewsCount($doctor);
-                return $arr;
-            });
-
-            return $withRating->sortByDesc('average_rating')->take($limit)->values()->all();
+                    return $arr;
+                })
+                ->values()
+                ->all();
         });
 
         return response()->json(['doctors' => $doctorsList]);

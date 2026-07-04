@@ -18,15 +18,50 @@ class PublicStorageUrl
 
         $path = trim($path);
 
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            return self::normalizeFullUrl($path);
+        if (preg_match('#/storage/(https?://.+)$#i', $path, $matches)) {
+            return self::resolve($matches[1]);
         }
 
-        return url(Storage::url($path));
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return self::encodeUrl(self::normalizeFullUrl($path));
+        }
+
+        return self::encodeUrl(url(Storage::url($path)));
+    }
+
+    private static function encodeUrl(string $url): string
+    {
+        $parsed = parse_url($url);
+        if ($parsed === false || empty($parsed['path'])) {
+            return $url;
+        }
+
+        $segments = array_values(array_filter(
+            explode('/', $parsed['path']),
+            static fn (string $segment): bool => $segment !== ''
+        ));
+
+        if ($segments === []) {
+            return $url;
+        }
+
+        $encodedPath = implode('/', array_map(static function (string $segment): string {
+            return rawurlencode(rawurldecode($segment));
+        }, $segments));
+
+        $scheme = $parsed['scheme'] ?? 'https';
+        $host = $parsed['host'] ?? '';
+        $port = isset($parsed['port']) ? ':'.$parsed['port'] : '';
+
+        return $scheme.'://'.$host.$port.'/'.$encodedPath;
     }
 
     private static function normalizeFullUrl(string $url): string
     {
+        if (preg_match('#/storage/(https?://.+)$#i', $url, $matches)) {
+            return self::resolve($matches[1]);
+        }
+
         $parsed = parse_url($url);
         if ($parsed === false || empty($parsed['path'])) {
             return $url;

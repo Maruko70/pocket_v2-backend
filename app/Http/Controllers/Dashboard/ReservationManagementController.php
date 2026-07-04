@@ -191,20 +191,36 @@ class ReservationManagementController extends Controller
     {
         $query = Reservation::with(['user', 'doctor', 'complex']);
 
-        if ($request->has('status')) {
+        if ($request->filled('search')) {
+            $term = trim($request->get('search'));
+            $query->where(function ($q) use ($term) {
+                $q->where('patient_name', 'like', "%{$term}%")
+                    ->orWhere('patient_phone', 'like', "%{$term}%");
+            });
+        }
+
+        if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
-        if ($request->has('doctor_id')) {
+        if ($request->filled('doctor_id')) {
             $query->where('doctor_id', $request->doctor_id);
         }
 
-        if ($request->has('complex_id')) {
+        if ($request->filled('complex_id')) {
             $query->where('complex_id', $request->complex_id);
         }
 
-        if ($request->has('date')) {
+        if ($request->filled('date')) {
             $query->where('date', $request->date);
+        }
+
+        if ($request->filled('start_date')) {
+            $query->where('date', '>=', $request->start_date);
+        }
+
+        if ($request->filled('end_date')) {
+            $query->where('date', '<=', $request->end_date);
         }
 
         $perPage = $request->get('per_page', 15);
@@ -360,6 +376,14 @@ class ReservationManagementController extends Controller
     public function export(Request $request): StreamedResponse
     {
         $query = Reservation::with(['doctor', 'complex']);
+
+        if ($request->filled('search')) {
+            $term = trim($request->get('search'));
+            $query->where(function ($q) use ($term) {
+                $q->where('patient_name', 'like', "%{$term}%")
+                    ->orWhere('patient_phone', 'like', "%{$term}%");
+            });
+        }
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);

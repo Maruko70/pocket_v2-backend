@@ -42,8 +42,11 @@ return [
     ],
 
     'fcm' => [
-        'server_key' => env('FCM_SERVER_KEY'),
-        'sender_id' => env('FCM_SENDER_ID'),
+        'project_id' => env('FCM_PROJECT_ID', 'pocket-b3b39'),
+        // Path to Firebase service account JSON (relative to backend root or absolute).
+        'credentials' => env('FCM_CREDENTIALS', 'storage/app/private/firebase-service-account.json'),
+        // Optional: inline service account JSON for hosts that cannot store a file.
+        'credentials_json' => env('FCM_CREDENTIALS_JSON'),
     ],
 
 ];

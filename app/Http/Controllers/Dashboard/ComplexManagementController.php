@@ -34,6 +34,15 @@ class ComplexManagementController extends Controller
         } elseif (!empty($idList)) {
             $query->whereIn('id', $idList);
         }
+
+        if ($request->filled('booking_method')) {
+            $query->where('booking_method', $request->get('booking_method'));
+        }
+
+        if ($request->has('is_active') && $request->get('is_active') !== '' && $request->get('is_active') !== null) {
+            $query->where('is_active', $request->boolean('is_active'));
+        }
+
         $complexes = $query->paginate($perPage, ['*'], 'page', $page);
 
         return response()->json([
@@ -127,7 +136,7 @@ class ComplexManagementController extends Controller
         }
 
         $data = $request->only(['name', 'bio', 'phone', 'address']);
-        if ($request->has('booking_method')) {
+        if ($request->filled('booking_method')) {
             $data['booking_method'] = $request->input('booking_method');
         }
         if ($request->has('is_active')) {

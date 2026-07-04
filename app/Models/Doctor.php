@@ -17,10 +17,12 @@ class Doctor extends Model
         'bio',
         'image',
         'status',
+        'featured_sort',
     ];
 
     protected $casts = [
         'status' => 'string',
+        'featured_sort' => 'integer',
     ];
 
     public function complexes(): BelongsToMany
@@ -111,6 +113,11 @@ class Doctor extends Model
     public function scopeActive($query)
     {
         return $query->where('status', 'active');
+    }
+
+    public function scopeFeatured($query)
+    {
+        return $query->whereNotNull('featured_sort')->orderBy('featured_sort');
     }
 }
 

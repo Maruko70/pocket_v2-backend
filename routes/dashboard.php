@@ -64,9 +64,11 @@ Route::prefix('dashboard')->middleware($dashboardMiddleware)->group(function () 
     // Doctors
     Route::middleware('dashboard.permission:doctors.view,doctors.manage')->group(function () {
         Route::get('doctors', [DoctorManagementController::class, 'index']);
+        Route::get('doctors/featured', [DoctorManagementController::class, 'featured']);
         Route::get('doctors/{doctor}', [DoctorManagementController::class, 'show']);
     });
     Route::middleware('dashboard.permission:doctors.manage')->group(function () {
+        Route::put('doctors/featured', [DoctorManagementController::class, 'updateFeatured']);
         Route::post('doctors/{id}/account', [DoctorManagementController::class, 'storeAccount']);
         Route::post('doctors/{id}/status', [DoctorManagementController::class, 'updateStatus']);
         Route::post('doctors/bulk-status', [DoctorManagementController::class, 'bulkUpdateStatus']);
@@ -181,5 +183,7 @@ Route::prefix('dashboard')->middleware($dashboardMiddleware)->group(function () 
     Route::middleware('dashboard.permission:notifications.send')->group(function () {
         Route::post('notifications/send', [NotificationController::class, 'send']);
         Route::post('notifications/upload-image', [NotificationController::class, 'uploadImage']);
+        Route::get('notifications/history', [NotificationController::class, 'history']);
+        Route::post('notifications/{id}/resend', [NotificationController::class, 'resend']);
     });
 });

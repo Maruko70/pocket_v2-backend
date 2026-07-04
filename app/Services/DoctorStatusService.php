@@ -29,15 +29,23 @@ class DoctorStatusService
             }
         }
 
-        // Check for doctors that should be suspended/disabled based on from_date
-        $upcomingStatuses = DoctorStatusHistory::where('from_date', '<=', $now)
-            ->where('to_date', '>', $now)
-            ->orWhere(function ($query) use ($now) {
-                $query->where('from_date', '<=', $now)
+        // Check for doctors whose scheduled status change window has started.
+        // Only the latest unprocessed record per doctor is applied so an older
+        // record can never override a newer admin decision.
+        $upcomingStatuses = DoctorStatusHistory::where(function ($query) use ($now) {
+            $query->where(function ($q) use ($now) {
+                $q->where('from_date', '<=', $now)
+                    ->where('to_date', '>', $now);
+            })->orWhere(function ($q) use ($now) {
+                $q->where('from_date', '<=', $now)
                     ->whereNull('to_date');
-            })
+            });
+        })
             ->whereNull('processed_at')
-            ->get();
+            ->orderBy('id')
+            ->get()
+            ->groupBy('doctor_id')
+            ->map(fn ($records) => $records->last());
 
         foreach ($upcomingStatuses as $history) {
             $doctor = Doctor::find($history->doctor_id);
@@ -51,6 +59,16 @@ class DoctorStatusService
     public function setDoctorStatus(Doctor $doctor, string $status, ?Carbon $fromDate = null, ?Carbon $toDate = null, bool $autoReactivate = false)
     {
         $fromDate = $fromDate ?? Carbon::now('Africa/Khartoum');
+        $now = Carbon::now('Africa/Khartoum');
+
+        // Close out any pending history records so a stale record (e.g. an
+        // indefinite "unavailable") cannot be re-applied by the scheduler
+        // after the admin explicitly sets a new status.
+        if ($fromDate <= $now) {
+            DoctorStatusHistory::where('doctor_id', $doctor->id)
+                ->whereNull('processed_at')
+                ->update(['processed_at' => $now]);
+        }
 
         // Create status history record
         DoctorStatusHistory::create([
@@ -62,7 +80,7 @@ class DoctorStatusService
         ]);
 
         // If from_date is now or in the past, update immediately
-        if ($fromDate <= Carbon::now('Africa/Khartoum')) {
+        if ($fromDate <= $now) {
             $doctor->update(['status' => $status]);
         }
     }

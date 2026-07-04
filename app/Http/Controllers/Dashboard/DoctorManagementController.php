@@ -9,6 +9,7 @@ use App\Rules\SudanPhoneNumber;
 use App\Services\DoctorStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -26,12 +27,44 @@ class DoctorManagementController extends Controller
         $perPage = $request->get('per_page', 15);
         $page = $request->get('page', 1);
         $status = $request->get('status');
+        $search = $request->get('search', $request->get('q'));
+        $ids = $request->get('ids');
+        $idList = $ids ? (is_array($ids) ? $ids : array_filter(array_map('intval', explode(',', $ids)))) : [];
+        $hasSearch = $search && strlen(trim($search)) > 0;
 
         $query = Doctor::with(['complexes', 'majors']);
 
         if ($status) {
             $query->where('status', $status);
         }
+
+        if ($hasSearch && !empty($idList)) {
+            $term = trim($search);
+            $query->where(function ($q) use ($term, $idList) {
+                $q->where('name', 'like', "%{$term}%")
+                    ->orWhereIn('id', $idList);
+            });
+        } elseif ($hasSearch) {
+            $query->where('name', 'like', '%'.trim($search).'%');
+        } elseif (!empty($idList)) {
+            $query->whereIn('id', $idList);
+        }
+
+        if ($request->filled('complex_id')) {
+            $complexId = $request->get('complex_id');
+            $query->whereHas('complexes', fn ($q) => $q->where('complexes.id', $complexId));
+        }
+
+        if ($request->filled('major_id')) {
+            $majorId = $request->get('major_id');
+            $query->whereHas('majors', fn ($q) => $q->where('majors.id', $majorId));
+        }
+
+        $sortBy = in_array($request->get('sort_by'), ['name', 'status', 'created_at'], true)
+            ? $request->get('sort_by')
+            : 'id';
+        $sortDir = $request->get('sort_dir') === 'desc' ? 'desc' : 'asc';
+        $query->orderBy($sortBy, $sortDir);
 
         $doctors = $query->paginate($perPage, ['*'], 'page', $page);
 
@@ -342,5 +375,67 @@ class DoctorManagementController extends Controller
                 'phone' => $doctorUser->phone,
             ],
         ], $doctorUser->wasRecentlyCreated ? 201 : 200);
+    }
+
+    public function featured()
+    {
+        $doctors = Doctor::active()
+            ->featured()
+            ->with(['complexes', 'majors'])
+            ->get();
+
+        return response()->json([
+            'doctors' => $doctors,
+            'doctor_ids' => $doctors->pluck('id')->values(),
+        ]);
+    }
+
+    public function updateFeatured(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'doctor_ids' => 'present|array|max:6',
+            'doctor_ids.*' => 'integer|distinct|exists:doctors,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $doctorIds = $request->input('doctor_ids', []);
+
+        if ($doctorIds !== []) {
+            $activeCount = Doctor::whereIn('id', $doctorIds)
+                ->where('status', 'active')
+                ->count();
+
+            if ($activeCount !== count($doctorIds)) {
+                return response()->json([
+                    'message' => 'Validation failed',
+                    'errors' => [
+                        'doctor_ids' => ['Only active doctors can be featured.'],
+                    ],
+                ], 422);
+            }
+        }
+
+        DB::transaction(function () use ($doctorIds) {
+            Doctor::query()->update(['featured_sort' => null]);
+
+            foreach ($doctorIds as $index => $doctorId) {
+                Doctor::where('id', $doctorId)->update([
+                    'featured_sort' => $index + 1,
+                ]);
+            }
+        });
+
+        Cache::forget('doctors_featured_curated');
+
+        return response()->json([
+            'message' => 'Featured doctors updated successfully',
+            'doctor_ids' => $doctorIds,
+        ]);
     }
 }
